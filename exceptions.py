@@ -1,70 +1,72 @@
-"""exceptions.py for implementing error handling for edge cases"""
+"""Custom exceptions and helper functions for automation-tool-60.
+
+Provides base error classes and common operations for error handling.
+"""
+
 import logging
-from typing import Any, Callable, Optional, Dict
-from contextlib import contextmanager
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-# Custom exceptions and handlers for automation edge cases
-class AutomationError(Exception):
-    def __init__(self, message: str, error_code: int = 500, context: Optional[Dict[str, Any]] = None):
+
+from typing import Optional, Dict, Any
+
+class BaseAutomationError(Exception):
+    """Base exception class for the automation tool."""
+
+    def __init__(self, message: str, code: int = 500, context: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message)
         self.message = message
-        self.error_code = error_code
+        self.code = code
         self.context = context or {}
-    def __str__(self) -> str:
-        return f"[{self.error_code}] {self.message}"
-class EdgeCaseError(AutomationError):
-    pass
-class FileNotFoundError(EdgeCaseError):
-    def __init__(self, filepath: str):
-        super().__init__(f"File not found at {filepath}", 404, {"filepath": filepath})
-class InvalidInputError(EdgeCaseError):
-    def __init__(self, input_name: str, details: str):
-        super().__init__(f"Invalid input {input_name}: {details}", 400, {"input": input_name, "details": details})
-class TimeoutError(EdgeCaseError):
-    def __init__(self, task: str, seconds: float):
-        super().__init__(f"Timeout after {seconds}s on {task}", 408, {"task": task, "timeout": seconds})
-class ResourceError(EdgeCaseError):
-    def __init__(self, resource_type: str, current: int, max_allowed: int):
-        super().__init__(f"{resource_type} limit exceeded: {current}/{max_allowed}", 429, {"resource": resource_type, "current": current, "max": max_allowed})
-@contextmanager
-def handle_edge_cases(operation_name: str):
-    try:
-        logging.info(f"Beginning operation: {operation_name}")
-        yield
-        logging.info(f"Operation completed: {operation_name}")
-    except FileNotFoundError as e:
-        logging.warning(f"File edge case: {e}. Using defaults.")
-    except InvalidInputError as e:
-        logging.error(f"Input edge case: {e}")
-        raise
-    except TimeoutError as e:
-        logging.warning(f"Timeout edge case: {e}. Proceeding without result.")
-    except ResourceError as e:
-        logging.critical(f"Resource edge case: {e}")
-        raise
-    except EdgeCaseError as e:
-        logging.error(f"General edge case: {e}")
-    except Exception as e:
-        logging.exception(f"Unexpected error during {operation_name}")
-        raise AutomationError(f"Unhandled error in {operation_name}: {str(e)}") from e
-def safe_run(func: Callable[[], Any], default: Any = None) -> Any:
-    try:
-        return func()
-    except FileNotFoundError as e:
-        logging.warning(str(e))
-        return default
-    except InvalidInputError as e:
-        logging.error(str(e))
-        return default
-    except TimeoutError as e:
-        logging.warning(str(e))
-        return default
-    except ResourceError as e:
-        logging.error(str(e))
-        return None
-    except EdgeCaseError as e:
-        logging.error(str(e))
-        return default
-    except Exception as e:
-        logging.error(f"Unexpected: {e}")
-        raise AutomationError(str(e)) from e
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return a dictionary representation of the error."""
+        return {
+            "error_type": self.__class__.__name__,
+            "message": self.message,
+            "code": self.code,
+            "context": self.context
+        }
+
+class ConfigurationError(BaseAutomationError):
+    """Raised when there is an issue with configuration."""
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(message, code=400, context=context)
+
+class NetworkError(BaseAutomationError):
+    """Raised for network or connectivity issues."""
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(message, code=503, context=context)
+
+class TaskError(BaseAutomationError):
+    """Raised when a task fails during execution."""
+
+    def __init__(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(message, code=500, context=context)
+
+def log_error(error: BaseAutomationError, logger: Optional[logging.Logger] = None) -> None:
+    """Log the error using the provided logger or default."""
+
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    logger.error(
+        error.message,
+        extra={
+            "error_code": error.code,
+            "error_context": error.context,
+            "error_type": error.__class__.__name__
+        }
+    )
+
+def get_error_details(error: Exception) -> Dict[str, Any]:
+    """Extract details from any exception, wrapping in base if needed."""
+
+    if isinstance(error, BaseAutomationError):
+        return error.to_dict()
+    else:
+        return {
+            "error_type": error.__class__.__name__,
+            "message": str(error),
+            "code": 500,
+            "context": {}
+        }
