@@ -1,48 +1,40 @@
-# Automation Tool 60
+# automation-tool-60
 
-Automation Tool 60 is a versatile Python-based framework designed to streamline repetitive tasks and automate workflows efficiently. With easy integration capabilities and user-friendly features, it empowers developers and businesses to save valuable time and enhance productivity.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+automation-tool-60 is a Python CLI tool that automates repetitive file and system tasks to improve productivity. It provides a simple interface for creating and running automated workflows without complex scripting.
 
 ## Features
-- **Task Scheduling**: Schedule scripts and commands to run at specific times or intervals using a simple configuration.
-- **Data Manipulation**: Easily manipulate CSV and JSON data files with built-in functions for reading, writing, and transforming data.
-- **API Integration**: Connect and interact with RESTful APIs effortlessly, enabling automated data retrieval and submission.
-- **Logging and Reporting**: Maintain detailed logs of all actions performed and generate customizable reports for performance tracking.
+- Rule-based file organization that sorts files by type, date, or custom patterns
+- Incremental backups with compression and versioning for local directories
+- Disk usage monitoring with threshold alerts and automated cleanup suggestions
+- Support for running user-defined Python scripts on schedules or file events
 
 ## Installation
-
-To get started with Automation Tool 60, make sure you have Python installed. Then, clone the repository and install the required dependencies using the following commands:
 
 ```bash
 git clone https://github.com/Developer/automation-tool-60.git
 cd automation-tool-60
 pip install -r requirements.txt
+pip install -e .
 ```
 
-## Basic Usage
+## Usage
 
-After installation, you can start automating your tasks. Here is a simple example that schedules a data retrieval task:
+Organize files in a directory:
 
-```python
-from automation import Scheduler, APIClient
-
-# Initialize API client
-client = APIClient('https://api.example.com/data')
-
-# Define a function to retrieve and process data
-def fetch_data():
-    data = client.get_data()
-    print("Data retrieved:", data)
-
-# Schedule the task to run every hour
-scheduler = Scheduler()
-scheduler.schedule(fetch_data, interval='hourly')
-
-# Start the scheduler
-scheduler.start()
+```bash
+automation-tool-60 organize --source ~/Downloads --rules rules.yaml
 ```
 
-This basic setup allows you to fetch data from a specified API every hour, automating your data collection seamlessly.
+Run a backup task:
 
-![MIT License](https://img.shields.io/badge/license-MIT-brightgreen)
+```bash
+automation-tool-60 backup --source ~/Projects --dest /mnt/backup
+```
 
-For more information, checks the [documentation](https://github.com/Developer/automation-tool-60/wiki).
+For all available commands:
+
+```bash
+automation-tool-60 --help
+```
