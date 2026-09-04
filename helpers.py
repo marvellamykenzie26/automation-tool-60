@@ -1,75 +1,44 @@
-import os
-import time
-import shutil
-import json
-from typing import List, Dict, Optional, Any, Callable
+import re
+from typing import Any, Optional
 
-def ensure_directory_exists(path: str) -> None:
-    """Create the directory if it does not exist."""
-    if not os.path.exists(path):
-        os.makedirs(path)
-        print(f"Created directory: {path}")
+def validate_input_data(data: Any) -> bool:
+    """
+    validates that the input is a dictionary containing required keys
+    and formatted according to automation-tool-60 specifications.
+    """
+    if not isinstance(data, dict):
+        return False
 
-def copy_files_with_filter(source_dir: str, target_dir: str, file_extensions: Optional[List[str]] = None) -> int:
-    """Copy files from source to target, filtering by extensions if provided."""
-    ensure_directory_exists(target_dir)
-    copied_count = 0
-    for filename in os.listdir(source_dir):
-        file_path = os.path.join(source_dir, filename)
-        if os.path.isfile(file_path):
-            if file_extensions is None or any(filename.lower().endswith(ext.lower()) for ext in file_extensions):
-                target_path = os.path.join(target_dir, filename)
-                shutil.copy2(file_path, target_path)
-                copied_count += 1
-    return copied_count
+    required_keys = {'id', 'payload', 'timestamp'}
+    if not all(key in data for key in required_keys):
+        return False
 
-def wait_until_file_exists(file_path: str, timeout_seconds: int = 60) -> bool:
-    """Wait for a file to exist within the timeout period."""
-    start_time = time.time()
-    while time.time() - start_time < timeout_seconds:
-        if os.path.exists(file_path):
-            return True
-        time.sleep(1)
-    return False
+    if not isinstance(data['id'], int) or data['id'] < 0:
+        return False
 
-def delete_old_files(directory: str, max_age_seconds: int = 86400) -> int:
-    """Delete files older than the specified age in seconds."""
-    if not os.path.exists(directory):
-        return 0
-    deleted_count = 0
-    current_time = time.time()
-    for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
-        if os.path.isfile(file_path):
-            file_age = current_time - os.path.getmtime(file_path)
-            if file_age > max_age_seconds:
-                os.remove(file_path)
-                deleted_count += 1
-    return deleted_count
+    if not isinstance(data['payload'], str) or len(data['payload']) > 1024:
+        return False
 
-def load_config_from_json(config_path: str) -> Dict[str, Any]:
-    """Load configuration from a JSON file."""
-    if not os.path.exists(config_path):
-        return {}
-    with open(config_path, 'r') as f:
-        return json.load(f)
+    return True
 
-def save_config_to_json(config: Dict[str, Any], config_path: str) -> None:
-    """Save configuration dictionary to a JSON file."""
-    ensure_directory_exists(os.path.dirname(config_path))
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=4)
+def sanitize_payload(payload: str) -> str:
+    """
+    strips potentially harmful characters from the process payload.
+    """
+    # allow only alphanumeric and standard punctuation
+    clean_payload = re.sub(r'[^a-zA-Z0-9.,!? ]', '', payload)
+    return clean_payload.strip()
 
-def batch_process_files(directory: str, process_func: Callable[[str], None], file_extensions: Optional[List[str]] = None) -> int:
-    """Apply a processing function to files in a directory."""
-    processed_count = 0
-    for filename in os.listdir(directory):
-        file_path = os.path.join(directory, filename)
-        if os.path.isfile(file_path):
-            if file_extensions is None or any(filename.lower().endswith(ext.lower()) for ext in file_extensions):
-                try:
-                    process_func(file_path)
-                    processed_count += 1
-                except Exception as e:
-                    print(f"Error processing {file_path}: {e}")
-    return processed_count
+def process_main_loop_item(data: Any) -> Optional[dict]:
+    """
+    safely handles validation and sanitization for items in the processing loop.
+    """
+    if not validate_input_data(data):
+        return None
+
+    return {
+        "id": data['id'],
+        "payload": sanitize_payload(data['payload']),
+        "timestamp": data['timestamp'],
+        "status": "validated"
+    }
