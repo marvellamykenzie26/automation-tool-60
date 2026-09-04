@@ -1,51 +1,37 @@
-import json
 import os
-from typing import Any, Dict, Optional
+import json
+import logging
 
+# Configure logger for automation-tool-60
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-class ConfigLoader:
-    """Configuration loader that merges file settings with defaults."""
+def load_config(filepath: str) -> dict:
+    """Loads configuration from a JSON file with robust error handling."""
+    if not filepath:
+        raise ValueError("Configuration path cannot be empty")
 
-    DEFAULTS: Dict[str, Any] = {
-        "max_retries": 5,
-        "timeout_seconds": 30,
-        "log_level": "INFO",
-        "output_directory": "outputs",
-        "enable_logging": True,
-        "api_endpoint": "https://api.example.com",
-    }
+    if not os.path.exists(filepath):
+        logger.error(f"Config file missing: {filepath}")
+        return {}
 
-    def __init__(self, config_path: str = "config.json") -> None:
-        self.config_path = config_path
-        self.config: Dict[str, Any] = self.DEFAULTS.copy()
-        self._load_from_file()
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            return data
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON format in {filepath}: {e}")
+        return {}
+    except PermissionError:
+        logger.error(f"Permission denied accessing {filepath}")
+        return {}
+    except Exception as e:
+        logger.critical(f"Unexpected error loading config: {e}")
+        return {}
 
-    def _load_from_file(self) -> None:
-        """Load configuration from JSON file if it exists."""
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as file:
-                    user_config = json.load(file)
-                if isinstance(user_config, dict):
-                    self.config.update(user_config)
-            except (json.JSONDecodeError, IOError, OSError):
-                pass
-
-    def get(self, key: str, default: Optional[Any] = None) -> Any:
-        """Retrieve a configuration value."""
-        return self.config.get(key, default)
-
-    def set(self, key: str, value: Any) -> None:
-        """Update a configuration value in memory."""
-        self.config[key] = value
-
-    def save(self) -> None:
-        """Save the current configuration to the file."""
-        try:
-            with open(self.config_path, "w", encoding="utf-8") as file:
-                json.dump(self.config, file, indent=2)
-        except IOError:
-            pass
-
-    def __str__(self) -> str:
-        return str(self.config)
+def get_env_or_default(key: str, default: str) -> str:
+    """Retrieves environment variable with fallback mechanism."""
+    try:
+        return os.environ.get(key, default)
+    except Exception:
+        return default
