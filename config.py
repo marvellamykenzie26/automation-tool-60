@@ -1,37 +1,31 @@
 import os
 import json
-import logging
+from typing import Any, Dict
 
-# Configure logger for automation-tool-60
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+DEFAULT_CONFIG = {
+    "timeout": 30,
+    "retries": 3,
+    "log_level": "INFO",
+    "enabled": True
+}
 
-def load_config(filepath: str) -> dict:
-    """Loads configuration from a JSON file with robust error handling."""
-    if not filepath:
-        raise ValueError("Configuration path cannot be empty")
+def load_config(config_path: str = "config.json") -> Dict[str, Any]:
+    """
+    Loads configuration from file with fallback to defaults.
+    """
+    config = DEFAULT_CONFIG.copy()
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                user_config = json.load(f)
+                config.update(user_config)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: failed to load config file: {e}. Using defaults.")
+            
+    return config
 
-    if not os.path.exists(filepath):
-        logger.error(f"Config file missing: {filepath}")
-        return {}
-
-    try:
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-            return data
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON format in {filepath}: {e}")
-        return {}
-    except PermissionError:
-        logger.error(f"Permission denied accessing {filepath}")
-        return {}
-    except Exception as e:
-        logger.critical(f"Unexpected error loading config: {e}")
-        return {}
-
-def get_env_or_default(key: str, default: str) -> str:
-    """Retrieves environment variable with fallback mechanism."""
-    try:
-        return os.environ.get(key, default)
-    except Exception:
-        return default
+if __name__ == "__main__":
+    # usage example
+    app_config = load_config()
+    print(f"Active configuration: {app_config}")
