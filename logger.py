@@ -1,70 +1,48 @@
 import logging
-
-import sys
-
+import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from typing import Optional
 
-class AutomationLogger:
-    """Simple logger for automation tool with file and console output."""
+def setup_logger(
+    name: str = "automation_tool",
+    log_file: str = "logs/app.log",
+    max_bytes: int = 5 * 1024 * 1024,  # 5 MB
+    backup_count: int = 3,
+    level: int = logging.INFO,
+) -> logging.Logger:
+    """Configures a logger with console output and rotating file storage."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
 
-    def __init__(self, name: str = "automation-tool-60", log_dir: str = "logs"):
-        self.name = name
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        self._configure_handlers()
+    # Prevent handler duplication if setup is called multiple times
+    if logger.handlers:
+        return logger
 
-    def _configure_handlers(self):
-        # Clear existing handlers to avoid duplicates
-        self.logger.handlers = []
+    log_format = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
-        # File handler
-        log_file = self.log_dir / f"{self.name}.log"
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.INFO)
-        file_format = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        file_handler.setFormatter(file_format)
-        self.logger.addHandler(file_handler)
+    # Ensure the log file directory exists
+    log_path = Path(log_file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.DEBUG)
-        console_format = logging.Formatter(
-            '%(levelname)s: %(message)s'
-        )
-        console_handler.setFormatter(console_format)
-        self.logger.addHandler(console_handler)
+    # Configure rotating file handler
+    file_handler = RotatingFileHandler(
+        filename=str(log_path),
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(log_format)
+    file_handler.setLevel(level)
+    logger.addHandler(file_handler)
 
-    def debug(self, message: str):
-        self.logger.debug(message)
+    # Configure standard stdout console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_format)
+    console_handler.setLevel(level)
+    logger.addHandler(console_handler)
 
-    def info(self, message: str):
-        self.logger.info(message)
-
-    def warning(self, message: str):
-        self.logger.warning(message)
-
-    def error(self, message: str):
-        self.logger.error(message)
-
-    def critical(self, message: str):
-        self.logger.critical(message)
-
-    def log_exception(self, message: str, exc: Optional[Exception] = None):
-        if exc:
-            self.logger.exception(message)
-        else:
-            self.logger.error(message)
-
-if __name__ == "__main__":
-    logger = AutomationLogger()
-    logger.info("Automation tool started")
-    try:
-        logger.debug("Processing data")
-    except Exception as e:
-        logger.log_exception("Error occurred", e)
+    return logger
