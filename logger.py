@@ -1,47 +1,39 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
 
 def setup_logger(
     name: str = "automation_tool",
-    log_file: str = "logs/app.log",
-    max_bytes: int = 5 * 1024 * 1024,  # 5 MB
-    backup_count: int = 3,
+    log_file: str = "automation.log",
     level: int = logging.INFO,
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 5,
 ) -> logging.Logger:
-    """Configures a logger with console output and rotating file storage."""
+    """Configures and returns a logger with console and rotating file handlers."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent handler duplication if setup is called multiple times
-    if logger.handlers:
+    if logger.hasHandlers():
         return logger
 
-    log_format = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s"
     )
 
-    # Ensure the log file directory exists
-    log_path = Path(log_file)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_dir = os.path.dirname(log_file)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
 
-    # Configure rotating file handler
     file_handler = RotatingFileHandler(
-        filename=str(log_path),
-        maxBytes=max_bytes,
-        backupCount=backup_count,
-        encoding="utf-8",
+        log_file, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
     )
-    file_handler.setFormatter(log_format)
+    file_handler.setFormatter(formatter)
     file_handler.setLevel(level)
     logger.addHandler(file_handler)
 
-    # Configure standard stdout console handler
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(log_format)
+    console_handler.setFormatter(formatter)
     console_handler.setLevel(level)
     logger.addHandler(console_handler)
 
